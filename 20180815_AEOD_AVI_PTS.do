@@ -128,7 +128,32 @@ gen abn_vol = relvol - p_vol
 summarize abn_vol
 save abnormal_volume, replace
 
-/* STILL TO DO - Calculate PTS measures */
+/* TO DO - Calculate turnover measures*/
+
+/* TO DO - Merge with list of trading days from SIRCA*/
+
+/* TO DO - Fill in gaps in time series data*/
+
+/* TO DO - Adjust prices for dilutions e.g. stock splits, capital adjustments*/
+
+/* TO DO - Calculate PTS measures */
 clear all
 cd "\\utsfs5.adsroot.uts.edu.au\home14$\12219352\My Documents\stata\working\"
 use "pri_15_6.dta", clear
+sort aeodnum date
+xtset aeodnum date
+foreach i of varlist aeodnum{
+gen beg_price=last if mofd(month)==7 & day(date)==1
+}
+
+/* PTSret = Nov 30 price/Jan 1 price
+PTSmax = Nov 30 price/Max price between Jan 1 and Nov 30*/
+
+/* STILL TO DO - Calculate turn of year returns*/
+foreach i of varlist aeodnum{
+gen prel = last/L.last
+gen 5dayprel = last/L5.last
+}
+
+
+
