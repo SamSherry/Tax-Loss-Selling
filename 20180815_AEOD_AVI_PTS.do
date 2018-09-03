@@ -137,13 +137,30 @@ save abnormal_volume, replace
 /* TO DO - Adjust prices for dilutions e.g. stock splits, capital adjustments*/
 
 /* TO DO - Calculate PTS measures */
+
+
 clear all
 cd "\\utsfs5.adsroot.uts.edu.au\home14$\12219352\My Documents\stata\working\"
 use "pri_15_6.dta", clear
+
+/* Tell STATA that data is a panel data set */
 sort aeodnum date
 xtset aeodnum date
-foreach i of varlist aeodnum{
-gen beg_price=last if mofd(month)==7 & day(date)==1
+
+/* Convert year variable to string*/
+
+/* Create ID variable = Ticker (or company identifier) + Year (using string variable) */
+
+/* Sort by ID variable and date*/
+
+/* Create a loop for each firm year*/
+
+/*Tsfill - fill in gaps with the time series*/
+
+/* Replace missing values inserted by tsfill*/
+
+foreach i of varlist id{
+gen beg_price=last if mofd(month)==1 & day(date)==1
 }
 
 /* PTSret = Nov 30 price/Jan 1 price
