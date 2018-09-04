@@ -218,6 +218,8 @@ duplicates drop aeodnum taxyear, force
 save maxprices, replace
 
 /* Merge beginning of period prices with main dataset*/
+clear all
+use begprice1
 merge 1:m aeodnum taxyear using prices_temp
 keep if _merge==3 /*Keep matched observations*/
 drop _merge
@@ -226,6 +228,7 @@ drop _merge
 gen pts=last/begprice
 keep if month(date)==5 & day(date)==31
 keep aeodnum taxyear pts
+drop if pts==.
 save pts, replace
 
 /* PTSMAX = May 31 price divided by highest close between July 1 and May 31*/
@@ -250,14 +253,15 @@ foreach i of varlist aeodnum{
 gen prel = last/L.last
 gen prel_5day = last/L5.last
 }
-/* 5-day return for first five days in July*/
+
+/* Return for first five days in July*/
 keep if month(date)==7 & day(date)==5
 drop if prel_5day==.
 keep aeodnum taxyear prel_5day
 sort aeodnum taxyear
 save July_5day, replace
 
-/* 5-day return for last five days in June*/
+/* Return for last five days in June*/
 clear all
 use prices_temp
 sort aeodnum date
