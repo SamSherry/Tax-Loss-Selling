@@ -130,47 +130,144 @@ save abnormal_volume, replace
 
 /* TO DO - Calculate turnover measures*/
 
-/* TO DO - Merge with list of trading days from SIRCA*/
-
-/* TO DO - Fill in gaps in time series data*/
-
 /* TO DO - Adjust prices for dilutions e.g. stock splits, capital adjustments*/
 
-/* TO DO - Calculate PTS measures */
-
-
+/* Calculate PTS measures*/
 clear all
 cd "\\utsfs5.adsroot.uts.edu.au\home14$\12219352\My Documents\stata\working\"
 use "pri_15_6.dta", clear
 
-/* Tell STATA that data is a panel data set */
+/* Declare data to be panel, with panel variable aeodnum, daily time series;
+Fill in gaps in the time series
+(Note: tsfill will likely result in a large file, as there will be many
+more observations. However, we aren't going to keep the output, as tsfill
+is only used as an intermediate step in calculating the PTS measures - the
+resulting dataset can be discarded after)*/
 sort aeodnum date
 xtset aeodnum date
-
-/* Convert year variable to string*/
-
-/* Create ID variable = Ticker (or company identifier) + Year (using string variable) */
-
-/* Sort by ID variable and date*/
-
-/* Create a loop for each firm year*/
-
-/*Tsfill - fill in gaps with the time series*/
+tsfill
 
 /* Replace missing values inserted by tsfill*/
-
-foreach i of varlist id{
-gen beg_price=last if mofd(month)==1 & day(date)==1
+foreach i of varlist aeodnum{
+drop year month
+gen year = year(date), after(date)
+gen month = mofd(date), after(year)
+format %tm month
+drop taxyear
+gen taxyear = year, after(year)
+replace taxyear = year + 1 if month(date)>6
+replace last = L.last if last == .
 }
 
-/* PTSret = Nov 30 price/Jan 1 price
-PTSmax = Nov 30 price/Max price between Jan 1 and Nov 30*/
+/* Create identifier variable to identify each firm-year*/
+tostring aeodnum taxyear, generate(aeod_string taxyear_string)
+generate id = aeod_string + "_" + taxyear_string, after(aeodnum)
+sort id date
+drop aeod_string taxyear_string
 
-/* STILL TO DO - Calculate turn of year returns*/
+/* Generate observation number variables:
+n1 = the observation number within each panel;
+n2 = the total number of observations in the panel;
+n3 = the observation number within each firm-year;
+n4 = the total number of observations for that firm-year. 
+(One panel = one company)*/
+sort aeodnum date
+by aeodnum: generate n1 = _n
+by aeodnum: generate n2 = _N
+order aeodnum asxcode n1 n2
+
+sort id date
+by id: generate n3 = _n
+by id: generate n4 = _N
+
+order aeodnum asxcode n1 n2 id n3 n4
+
+/* Drop surplus variables and observations*/
+drop asxcode volume value listedshares dilfactornodiv dilutionfactor dilutionfactorcode numberofdilution divdilutioncode divdilution coraxdilutioncode coraxdilution 
+
+/* Save as temp dataset - can delete later*/
+sort aeodnum taxyear
+save prices_temp, replace
+
+/* Calculate PTS measure*/
+/* Extract beginning of period prices*/
+foreach i of varlist aeodnum{
+gen begprice1=last if month(date)==7 & day(date)==1 /* July 1 Price*/
+gen begprice2=last if n3==1 /* Alternative specification of begprice - optional*/
+}
+keep aeodnum taxyear begprice1 begprice2
+drop if begprice1==. & begprice2==.
+sort aeodnum taxyear
+save begprices, replace
+
+drop begprice2
+drop if begprice1==.
+rename begprice1 begprice
+sort aeodnum taxyear
+save begprice1, replace
+
+/* Extract maximum price for PTSMAX measure*/
+clear all
+use prices_temp
+sort id date
+by id: egen maxprice=max(last)
+drop if maxprice==.
+keep aeodnum taxyear maxprice
+sort aeodnum taxyear
+duplicates drop aeodnum taxyear, force
+save maxprices, replace
+
+/* Merge beginning of period prices with main dataset*/
+merge 1:m aeodnum taxyear using prices_temp
+keep if _merge==3 /*Keep matched observations*/
+drop _merge
+
+/* Calculate PTS = May 31 price divided by July 1 price*/
+gen pts=last/begprice
+keep if month(date)==5 & day(date)==31
+keep aeodnum taxyear pts
+save pts, replace
+
+/* PTSMAX = May 31 price divided by highest close between July 1 and May 31*/
+clear all
+use maxprices
+merge 1:m aeodnum taxyear using prices_temp
+keep if _merge==3
+drop _merge
+gen ptsmax = last/maxprice
+drop if ptsmax==.
+summarize ptsmax
+keep if month(date)==5 & day(date)==31
+keep aeodnum taxyear ptsmax
+save ptsmax, replace
+
+/* Calculate turn of year returns*/
+clear all
+use prices_temp
+sort aeodnum date
+xtset aeodnum date
 foreach i of varlist aeodnum{
 gen prel = last/L.last
-gen 5dayprel = last/L5.last
+gen prel_5day = last/L5.last
 }
+/* 5-day return for first five days in July*/
+keep if month(date)==7 & day(date)==5
+drop if prel_5day==.
+keep aeodnum taxyear prel_5day
+sort aeodnum taxyear
+save July_5day, replace
 
-
-
+/* 5-day return for last five days in June*/
+clear all
+use prices_temp
+sort aeodnum date
+xtset aeodnum date
+foreach i of varlist aeodnum{
+gen prel = last/L.last
+gen prel_5day = last/L5.last
+}
+keep if month(date)==6 & day(date)==30
+drop if prel_5day==.
+keep aeodnum taxyear prel_5day
+sort aeodnum taxyear
+save June_5day, replace
