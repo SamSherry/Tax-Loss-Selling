@@ -1,5 +1,5 @@
 /* Created: 15/8/2018
-Last updated: 15/8/2018
+Last updated: 4/9/2018
 Project: Tax-loss selling in Australia
 For use with: ASX End of Day (EOD) database
 
